@@ -2,8 +2,10 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const express = require('express');
 const app = express();
+const firebase = require('firebase');
 
 admin.initializeApp();
+const db = admin.firestore();
 
 const firebaseConfig = {
     apiKey: "AIzaSyC9Nm1M9NrVZxjfXabhcAdu2-6_6w0IpQM",
@@ -14,8 +16,6 @@ const firebaseConfig = {
     messagingSenderId: "950398256620",
     appId: "1:950398256620:web:ddd69752394d8ff0e06cc9"
 };
-
-const firebase = require('firebase');
 firebase.initializeApp(firebaseConfig);
 
 app.post('/signup', (request, response) => {
@@ -24,29 +24,47 @@ app.post('/signup', (request, response) => {
         email: request.body.email,
         password: request.body.password,
         confirmPassword: request.body.confirmPassword,
-        handle: request.body.handle,
+        name: request.body.name,
     }
 
     // TODO: validate data
 
-    firebase.auth().createUserWithEmailAndPassword(newUser.email, newUser.password)
-        .then(data => {
-            return response
-                .status(201)
-                .json({
-                    message: `user ${data.user.uid} signed up successfully`
-                })
+    let token, userId;
+    db.doc(`/users/${newUser.name}`)
+        .get()
+        .then((doc) => {
+            if (doc.exists) {
+                return response.status(400).json({ name: 'this username is already taken'});
+            } else {
+                return firebase.auth().createUserWithEmailAndPassword(newUser.email, newUser.password);
+            }
+        })
+        .then((data) => {
+            userId = data.user.uid;
+            return data.user.getIdToken();
+        })
+        .then((idToken) => {
+            token = idToken;
+            const userCredentials = {
+                name: newUser.name,
+                email: newUser.email,
+                createdAt: admin.firestore.Timestamp.fromDate(new Date()),
+                userId
+            };
+            return db.collection('users').doc(`${newUser.name}`).set(userCredentials);
+        })
+        .then(() => {
+            return response.status(201).json({ token });
         })
         .catch((err) => {
             console.error(err);
             return response.status(500).json({ error: err.code });
         })
+
 });
 
 app.get('/posts', (request, response) => {
-    admin
-        .firestore()
-        .collection('posts')
+    db.collection('posts')
         .orderBy('createdAt', 'desc')
         .get()
         .then(data => {
@@ -57,7 +75,7 @@ app.get('/posts', (request, response) => {
                 posts.push({
                     postId: document.id,
                     body: document.data().body,
-                    userHandle: document.data().userHandle,
+                    userName: document.data().userName,
                     createdAt: document.data().createdAt
                 });
             });
@@ -71,19 +89,18 @@ app.post('/post', (request, response) => {
 
     const newPost = {
         body: request.body.body,
-        userHandle: request.body.userHandle,
+        userName: request.body.userHandle,
         createdAt: admin.firestore.Timestamp.fromDate(new Date())
     };
 
-    admin.firestore()
-        .collection('posts')
+    db.collection('posts')
         .add(newPost)
         .then(doc => {
             response.json({ message: `document ${doc.id} created successfully` });
         })
-        .catch(err => {
-            response.status(500).json({ error: 'Something went wrong!!' });
+        .catch((err) => {
             console.error(err);
+            return response.status(500).json({ error: 'Something went wrong!!' });
         })
 })
 
