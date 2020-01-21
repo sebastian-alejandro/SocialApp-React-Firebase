@@ -19,7 +19,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 
 const isEmpty = (string) => {
-    if(string.trim() === '') return true;
+    if (string.trim() === '') return true;
     else return false;
 }
 
@@ -58,7 +58,7 @@ app.post('/signup', (request, response) => {
         .get()
         .then((doc) => {
             if (doc.exists) {
-                return response.status(400).json({ name: 'this username is already taken'});
+                return response.status(400).json({ name: 'this username is already taken' });
             } else {
                 return firebase.auth().createUserWithEmailAndPassword(newUser.email, newUser.password);
             }
@@ -106,13 +106,13 @@ app.post('/login', (request, response) => {
             return data.user.getIdToken();
         })
         .then(token => {
-            return response.json({token});
+            return response.json({ token });
         })
         .catch(err => {
             console.error(err);
             if (err.code === 'auth/wrong-password') {
-                return response.status(403).json({ general: 'Wrong credentials, please try again'});
-            } else return response.status(500).json({error: err.code})
+                return response.status(403).json({ general: 'Wrong credentials, please try again' });
+            } else return response.status(500).json({ error: err.code })
         })
 
 });
@@ -139,11 +139,43 @@ app.get('/posts', (request, response) => {
         .catch((err) => console.error(err));
 });
 
-app.post('/post', (request, response) => {
+const FBAuth = (request, response, next) => {
+    let idToken;
+    if(request.headers.authorization && request.headers.authorization.startsWith('Bearer ')) {
+        idToken = request.headers.authorization.split('Bearer ')[1];
+    } else {
+        console.error('No token found')
+        return response.status(403).json({ error: 'Unauthorized'});
+    }
 
+    admin.auth().verifyIdToken(idToken)
+        .then((decodedToken) => {
+            request.user = decodedToken;
+            return db.collection('users')
+                .where('userId', '==', request.user.uid)
+                .limit(1)
+                .get();
+        })
+        .then((data) => {
+            request.user.name = data.docs[0].data().name;
+            return next();
+        })
+        .catch((err) => {
+            console.error([['Error while verifying token ', err]]);
+            return response.status(403).json(err);
+        })
+}
+
+app.post('/post', FBAuth, (request, response) => {
+
+    if (request.body.body.trim() === '') {
+        return response.status(400).json({
+            body: 'Body must not be empty'
+        })
+    }
     const newPost = {
         body: request.body.body,
-        userName: request.body.userHandle,
+        userName: request.user.name,
         createdAt: admin.firestore.Timestamp.fromDate(new Date())
     };
 
