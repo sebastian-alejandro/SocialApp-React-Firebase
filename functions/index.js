@@ -4,11 +4,12 @@ const app = express();
 
 const FBAuth = require('./util/firebaseAuth');
 const { getAllPosts, writeOnePost } = require('./repos/posts');
-const { signup, login } = require('./repos/users');
+const { signup, login, uploadImage } = require('./repos/users');
 
-//Signup-Signin routes
+//User routes
 app.post('/signup', signup);
 app.post('/login', login);
+app.post('/user/uploadImage', FBAuth, uploadImage);
 
 //Posts route
 app.get('/posts', getAllPosts);
