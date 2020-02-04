@@ -1,5 +1,5 @@
 const { admin, db } = require('../database/admin');
-const { validateSignupData, validateLoginData } = require('../util/validators');
+const { validateSignupData, validateLoginData, reduceUserDetails } = require('../util/validators');
 const config = require('../util/config');
 const firebase = require('firebase');
 firebase.initializeApp(config);
@@ -81,6 +81,46 @@ exports.login = (request, response) => {
             } else return response.status(500).json({ error: err.code })
         })
 
+}
+
+exports.addUserDetails = (request, response) => {
+
+    let userDetails = reduceUserDetails(request.body);
+
+    db.doc(`/users/${request.user.name}`)
+        .update(userDetails)
+        .then(() => {
+            return response.json({ message: 'Details added successfully' });
+        })
+        .catch((err) => {
+            console.error(err);
+            return response.status(500).json({ error: err.code });
+        });
+}
+
+exports.getAuthenticatedUser = (request, response) => {
+
+    let userData = {};
+
+    db.doc(`/users/${request.user.name}`)
+        .get()
+        .then(doc => {
+            if (doc.exists) {
+                userData.credentials = doc.data();
+                return db.collection('likes').where('userName', '==', request.user.name).get()
+            }
+        })
+        .then((data) => {
+            userData.likes = [];
+            data.forEach((doc) => {
+                userData.likes.push(doc.data());
+            });
+            return response.json(userData);
+        })
+        .catch((err) => {
+            console.error(err);
+            return response.status(500).json({ error: err.code });
+        })
 }
 
 exports.uploadImage = (request, response) => {
