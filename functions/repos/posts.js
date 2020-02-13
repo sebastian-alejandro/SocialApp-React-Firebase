@@ -13,7 +13,10 @@ exports.getAllPosts = (request, response) => {
                     postId: document.id,
                     body: document.data().body,
                     userName: document.data().userName,
-                    createdAt: document.data().createdAt
+                    createdAt: document.data().createdAt,
+                    commentCount: doc.data().commentCount,
+                    likeCount: doc.data().likeCount,
+                    userImage: doc.data().userImage,
                 });
             });
 
@@ -88,7 +91,7 @@ exports.commentOnPost = (request, response) => {
 
     if (request.body.body.trim() === '')
         return response.status(400), json({
-            error: 'Must not be empty'
+            comment: 'Must not be empty'
         });
     const newComment = {
         body: request.body.body,
