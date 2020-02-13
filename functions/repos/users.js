@@ -115,11 +115,65 @@ exports.getAuthenticatedUser = (request, response) => {
             data.forEach((doc) => {
                 userData.likes.push(doc.data());
             });
+            return db.collection('notifications').where('receiver', "==", request.user.name)
+                .orderBy('createdAt', 'desc').limit(10).get();
+        })
+        .then((data) => {
+            userData.notifications = [];
+            data.forEach((doc) => {
+                userData.notifications.push({
+                    receiver: doc.data().receiver,
+                    sender: doc.data().sender,
+                    postId: doc.data().postId,
+                    type: doc.data().type,
+                    read: doc.data().read,
+                    createdAt: doc.data().createdAt,
+                    notificationId: doc.id
+                })
+            })
             return response.json(userData);
         })
         .catch((err) => {
             console.error(err);
             return response.status(500).json({ error: err.code });
+        })
+}
+
+exports.getUserDetails = (request, response) => {
+    
+    let userData = {};
+
+    db.doc(`/users/${request.params.name}`)
+        .get()
+        .then((doc) => {
+            if (doc.exists) {
+                userData.user = doc.data();
+                return db.collection('posts')
+                    .where('userName', '==', request.params.name)
+                    .orderBy('createdAt', 'desc')
+                    .get();
+            } else {
+                return response.status(400).json({ error: 'User not found' });
+            }
+        })
+        .then((data) => {
+            userData.posts = [];
+            data.forEach((doc) => {
+                userData.posts.push({
+                    body: doc.data().body,
+                    createdAt: doc.data().createdAt,
+                    userName: doc.data().userName,
+                    userImage: doc.data().userImage,
+                    likeCount: doc.data().likeCount,
+                    commentCount: doc.data().commentCount,
+                    postId: doc.id,
+                })
+            });
+            return response.json(userData);
+        })
+        .catch((err) => {
+            console.log(err);
+            return response.status(500).json({ error : err.code });
         })
 }
 
@@ -173,4 +227,21 @@ exports.uploadImage = (request, response) => {
             })
     });
     busboy.end(request.rawBody);
+}
+
+exports.markNotificationsRead = (request, response) => {
+
+    let batch = db.batch();
+    request.body.forEach(notificationId => {
+        const notification = db.doc(`/notifications/${notificationId}`);
+        batch.update(notification, { read: true });
+    });
+    batch.commit()
+        .then(() => {
+            return response.json({ message: 'Notifications marked read' });
+        })
+        .catch(err => {
+            console.error(err);
+            return response.status(500).json({ error: err.code });
+        })
 }
