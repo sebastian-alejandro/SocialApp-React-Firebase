@@ -40,7 +40,7 @@ exports.signup = (request, response) => {
             const userCredentials = {
                 name: newUser.name,
                 email: newUser.email,
-                createdAt: admin.firestore.Timestamp.fromDate(new Date()),
+                createdAt: new Date().toISOString(),
                 imageUrl: `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${noImg}?alt=media`,
                 userId
             };

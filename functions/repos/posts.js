@@ -14,9 +14,9 @@ exports.getAllPosts = (request, response) => {
                     body: document.data().body,
                     userName: document.data().userName,
                     createdAt: document.data().createdAt,
-                    commentCount: doc.data().commentCount,
-                    likeCount: doc.data().likeCount,
-                    userImage: doc.data().userImage,
+                    commentCount: document.data().commentCount,
+                    likeCount: document.data().likeCount,
+                    userImage: document.data().userImage,
                 });
             });
 
@@ -35,7 +35,7 @@ exports.writeOnePost = (request, response) => {
     const newPost = {
         body: request.body.body,
         userName: request.user.name,
-        createdAt: admin.firestore.Timestamp.fromDate(new Date()),
+        createdAt: new Date().toISOString(),
         userImage: request.user.imageUrl,
         likeCount: 0,
         commentCount: 0,
@@ -95,7 +95,7 @@ exports.commentOnPost = (request, response) => {
         });
     const newComment = {
         body: request.body.body,
-        createdAt: admin.firestore.Timestamp.fromDate(new Date()),
+        createdAt: new Date().toISOString(),
         postId: request.params.postId,
         userName: request.user.name,
         userImage: request.user.imageUrl
